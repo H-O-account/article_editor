@@ -88,8 +88,37 @@ RSpec.describe "Api::V1::Articles", type: :request do
 
     context "ログインしているユーザーの記事ではない場合" do
       let(:article) { create(:article) }
+      let(:article_id) { article.id }
+
       it "記事の更新ができない" do
         expect { subject }.to raise_error(ActiveRecord::RecordNotFound)
+      end
+    end
+  end
+
+  describe "DELETE /api/v1/articles/:id" do
+    subject { delete(api_v1_article_path(article.id)) }
+
+    let(:current_user) { create(:user) }
+    before { allow_any_instance_of(Api::V1::BaseApiController).to receive(:current_user).and_return(current_user) } # rubocop:disable RSpec/AnyInstance
+
+    context "ログインしているユーザーの記事の場合" do
+      let(:article) { create(:article, user: current_user) }
+      before { article }
+
+      it "削除される" do
+        expect { subject }.to change { Article.where(user_id: current_user.id).count }.by(-1)
+      end
+    end
+
+    context "ログインしているユーザーの記事でない場合" do
+      let(:other_user) { create(:user) }
+      let(:article) { create(:article, user: other_user) }
+      before { article }
+
+      it "削除できない" do
+        expect { subject }.to raise_error(ActiveRecord::RecordNotFound) &
+                              change { Article.count }.by(0)
       end
     end
   end
