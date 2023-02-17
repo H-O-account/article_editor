@@ -27,6 +27,7 @@
 #
 #  index_users_on_confirmation_token    (confirmation_token) UNIQUE
 #  index_users_on_email                 (email) UNIQUE
+#  index_users_on_name                  (name) UNIQUE
 #  index_users_on_reset_password_token  (reset_password_token) UNIQUE
 #  index_users_on_uid_and_provider      (uid,provider) UNIQUE
 #
@@ -41,4 +42,6 @@ class User < ApplicationRecord
   has_many :articles, dependent: :destroy
   has_many :comments, dependent: :destroy
   has_many :article_likes, dependent: :destroy
+
+  validates :name, presence: true, uniqueness: { case_sensitive: false }
 end
