@@ -68,4 +68,29 @@ RSpec.describe "Api::V1::Articles", type: :request do
       end
     end
   end
+
+  describe "PATCH /api/v1/articles/:id" do
+    subject { patch(api_v1_article_path(article.id), params: params) }
+
+    let(:params) { { article: attributes_for(:article) } }
+    let(:current_user) { create(:user) }
+
+    before { allow_any_instance_of(Api::V1::BaseApiController).to receive(:current_user).and_return(current_user) } # rubocop:disable RSpec/AnyInstance
+
+    context "ログインしているユーザーの記事の場合" do
+      let(:article) { create(:article, user: current_user) } # Factories/articles.rbのuserを指す
+      it "記事の更新ができる" do
+        expect { subject }.to change { article.reload.title }.from(article.title).to(params[:article][:title]) &
+                              change { article.reload.body }.from(article.body).to(params[:article][:body])
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context "ログインしているユーザーの記事ではない場合" do
+      let(:article) { create(:article) }
+      it "記事の更新ができない" do
+        expect { subject }.to raise_error(ActiveRecord::RecordNotFound)
+      end
+    end
+  end
 end
