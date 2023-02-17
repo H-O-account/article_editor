@@ -49,4 +49,23 @@ RSpec.describe "Api::V1::Articles", type: :request do
       end
     end
   end
+
+  describe "POST /create" do
+    subject { post(api_v1_articles_path, params: params) }
+
+    # stub
+    before { allow_any_instance_of(Api::V1::BaseApiController).to receive(:current_user).and_return(current_user) } # rubocop:disable RSpec/AnyInstance
+
+    context "ログインしているユーザーが投稿したとき" do
+      let(:params) { { article: attributes_for(:article) } }
+      let(:current_user) { create(:user) }
+      it "記事が作成される" do
+        expect { subject }.to change { Article.where(user_id: current_user.id).count }.by(1) # ログインユーザーの記事のレコードが増えているか
+        res = JSON.parse(response.body)
+        expect(res["title"]).to eq params[:article][:title] # 記事のタイトルが同じか
+        expect(res["body"]).to eq params[:article][:body] # 記事のボディが同じか
+        expect(response).to have_http_status(:ok)
+      end
+    end
+  end
 end
