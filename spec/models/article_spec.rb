@@ -8,17 +8,17 @@ RSpec.describe Article, type: :model do
     end
   end
 
-  context "下書きとして保存する場合" do
-    let(:draft) { build(:article, status: 0) }
-    it "statusの値が0になる" do
+  context "status が下書き状態のとき" do
+    let(:draft) { build(:article, :draft) }
+    it "記事を下書き状態で作成できる" do
       expect(draft).to be_valid
       expect(draft.status).to eq "draft"
     end
   end
 
-  context "公開して保存する場合" do
-    let(:published) { build(:article, status: 1) }
-    it "statusの値が1になる" do
+  context "status が公開状態のとき" do
+    let(:published) { build(:article, :published) }
+    it "記事を公開状態で作成できる" do
       subject
       expect(published).to be_valid
       expect(published.status).to eq "published"
