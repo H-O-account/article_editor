@@ -4,20 +4,22 @@ RSpec.describe "Api::V1::Articles", type: :request do
   describe "GET /index" do
     subject { get(api_v1_articles_path) }
 
-    context "記事のレコードが発行された場合" do
-      let!(:create1) { create(:article, updated_at: 1.days.ago) }
-      let!(:create2) { create(:article) }
-      let!(:create3) { create(:article, updated_at: 2.days.ago) }
+    let!(:create1) { create(:article, :published, updated_at: 1.days.ago) }
+    let!(:create2) { create(:article, :draft) }
+    let!(:create3) { create(:article, :published, updated_at: 2.days.ago) }
 
-      it "記事の一覧が取得できる" do
+    before { create2 }
+
+    context "記事のレコードが発行された場合" do
+      it "公開済みの記事の一覧が取得できる(更新順)" do
         subject
         res = JSON.parse(response.body)
 
-        expect(response).to have_http_status(:ok) # 接続可能か
-        expect(res.length).to eq 3 # resの配列に作成した記事が３つあるか
-        expect(res[0].keys).to eq ["id", "title", "updated_at", "user"] # キーが合っているか
-        expect(res.map {|n| n["id"] }).to eq [create2.id, create1.id, create3.id] # 記事が更新日付順で出力されているか
-        expect(res[0]["user"].keys).to eq ["id", "name", "email"] # 記事に対するユーザー情報が作成されているか
+        expect(response).to have_http_status(:ok)
+        expect(res.length).to eq 2
+        expect(res[0].keys).to eq ["id", "title", "updated_at", "user"]
+        expect(res.map {|n| n["id"] }).to eq [create1.id, create3.id]
+        expect(res[0]["user"].keys).to eq ["id", "name", "email"]
       end
     end
   end
@@ -25,9 +27,9 @@ RSpec.describe "Api::V1::Articles", type: :request do
   describe "GET /show" do
     subject { get(api_v1_article_path(article_id)) }
 
-    context "選択した記事のidがあるとき" do
-      let(:article) { create(:article) }
-      let(:article_id) { article.id }
+    let(:article_id) { article.id }
+    context "選択した記事が公開状態であるとき" do
+      let(:article) { create(:article, :published) }
       it "記事詳細が表示される" do
         subject
         res = JSON.parse(response.body)
@@ -48,23 +50,41 @@ RSpec.describe "Api::V1::Articles", type: :request do
         expect { subject }.to raise_error ActiveRecord::RecordNotFound
       end
     end
+
+    context "対象の記事が下書き状態であるとき" do
+      let(:article) { create(:article, :draft) }
+
+      it "記事が見つからない" do
+        expect { subject }.to raise_error ActiveRecord::RecordNotFound
+      end
+    end
   end
 
   describe "POST /create" do
     subject { post(api_v1_articles_path, params: params, headers: headers) }
 
-    # stub
-    # before { allow_any_instance_of(Api::V1::BaseApiController).to receive(:current_user).and_return(current_user) }
+    let(:current_user) { create(:user) }
     let(:headers) { current_user.create_new_auth_token }
 
-    context "ログインしているユーザーが投稿したとき" do
-      let(:params) { { article: attributes_for(:article) } }
-      let(:current_user) { create(:user) }
-      it "記事が作成される" do
-        expect { subject }.to change { Article.where(user_id: current_user.id).count }.by(1) # ログインユーザーの記事のレコードが増えているか
+    context "公開指定で記事を作成するとき" do
+      let(:params) { { article: attributes_for(:article, :published) } }
+
+      it "記事のレコードが作成できる" do
+        expect { subject }.to change { Article.where(user_id: current_user.id).count }.by(1)
         res = JSON.parse(response.body)
-        expect(res["title"]).to eq params[:article][:title] # 記事のタイトルが同じか
-        expect(res["body"]).to eq params[:article][:body] # 記事のボディが同じか
+        expect(res["title"]).to eq params[:article][:title]
+        expect(res["body"]).to eq params[:article][:body]
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context "下書き指定で記事を作成するとき" do
+      let(:params) { { article: attributes_for(:article, :draft) } }
+
+      it "下書き記事が作成できる" do
+        expect { subject }.to change { Article.count }.by(1)
+        res = JSON.parse(response.body)
+        expect(res["status"]).to eq "draft"
         expect(response).to have_http_status(:ok)
       end
     end
@@ -73,52 +93,59 @@ RSpec.describe "Api::V1::Articles", type: :request do
   describe "PATCH /api/v1/articles/:id" do
     subject { patch(api_v1_article_path(article.id), params: params, headers: headers) }
 
-    let(:params) { { article: attributes_for(:article) } }
+    let(:params) { { article: attributes_for(:article, :published) } }
     let(:current_user) { create(:user) }
-
-    # before { allow_any_instance_of(Api::V1::BaseApiController).to receive(:current_user).and_return(current_user) }
     let(:headers) { current_user.create_new_auth_token }
 
-    context "ログインしているユーザーの記事の場合" do
-      let(:article) { create(:article, user: current_user) }
-      it "記事の更新ができる" do
+    context "自分の記事を更新するとき" do
+      let!(:article) { create(:article, :draft, user: current_user) }
+
+      it "任意の記事の更新ができる" do
         expect { subject }.to change { article.reload.title }.from(article.title).to(params[:article][:title]) &
-                              change { article.reload.body }.from(article.body).to(params[:article][:body])
+                              change { article.reload.body }.from(article.body).to(params[:article][:body]) &
+                              change { article.reload.status }.from(article.status).to(params[:article][:status].to_s)
         expect(response).to have_http_status(:ok)
       end
     end
 
-    context "ログインしているユーザーの記事ではない場合" do
-      let(:article) { create(:article) }
-      let(:article_id) { article.id }
+    context "他のユーザーの記事を更新しようとるすとき" do
+      let(:other_user) { create(:user) }
+      let(:article) { create(:article, user: other_user) }
 
-      it "記事の更新ができない" do
+      before { article }
+
+      it "更新できない" do
         expect { subject }.to raise_error(ActiveRecord::RecordNotFound)
+        change { Article.count }.by(0)
       end
     end
   end
 
   describe "DELETE /api/v1/articles/:id" do
-    subject { delete(api_v1_article_path(article.id), headers: headers) }
+    subject { delete(api_v1_article_path(article_id), headers: headers) }
 
     let(:current_user) { create(:user) }
-    # before { allow_any_instance_of(Api::V1::BaseApiController).to receive(:current_user).and_return(current_user) }
+    let(:article_id) { article.id }
     let(:headers) { current_user.create_new_auth_token }
-    context "ログインしているユーザーの記事の場合" do
+
+    context "自分の記事を削除しようとするとき" do
       let(:article) { create(:article, user: current_user) }
+
       before { article }
 
-      it "削除される" do
-        expect { subject }.to change { Article.where(user_id: current_user.id).count }.by(-1)
+      it "記事を削除できる" do
+        expect { subject }.to change { Article.count }.by(-1)
+        expect(response).to have_http_status(:no_content)
       end
     end
 
-    context "ログインしているユーザーの記事でない場合" do
+    context "他人が所持している記事のレコードを削除しようとするとき" do
       let(:other_user) { create(:user) }
       let(:article) { create(:article, user: other_user) }
+
       before { article }
 
-      it "削除できない" do
+      it "記事を削除できない" do
         expect { subject }.to raise_error(ActiveRecord::RecordNotFound) &
                               change { Article.count }.by(0)
       end
