@@ -13,12 +13,6 @@ Qiita 風の記事作成アプリ
  - Docker/Docker-compose
  - Rspec
 
-## URL/テストアカウント
- - ポートフォリオURL : https://wonderful-editor-1.herokuapp.com/
- - ゲストアカウン : gest
- - メールアドレス : gest@example.com
- - パスワード : gest1234
-
 ## アプリ作成の目的
 自分が意識したことは「_自走力_」です。
 エンジニアには「分からないことを解決する能力」が必要です。
