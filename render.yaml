@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: wonderful-editor
+    name: article-editor
     env: ruby
     region: singapore
     plan: free
@@ -14,12 +14,12 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: postgresql-wonderful-editor
+          name: postgresql-article-editor
           property: connectionString
     autoDeploy: false
 
 databases:
-  - name: postgresql-wonderful-editor
+  - name: postgresql-article-editor
     region: singapore
     plan: free
     ipAllowList:
