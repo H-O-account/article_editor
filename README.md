@@ -26,7 +26,8 @@ Qiita 風の記事作成アプリ
  - ログイン・ログアウト
  - マイページ機能
  - 記事の下書き機能
- ![FullSizeRender_compressed_2023_07_04_020440](https://github.com/hideohno/article_editor/assets/91966458/ed94e289-1cd2-40f5-876f-98adf2e7bd6c)
+   
+ 　 ![FullSizeRender_compressed_2023_07_04_020440](https://github.com/hideohno/article_editor/assets/91966458/ed94e289-1cd2-40f5-876f-98adf2e7bd6c)
 
 ## テスト内容
  - Rspec
